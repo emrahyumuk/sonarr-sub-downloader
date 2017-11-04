@@ -52,14 +52,33 @@ doLog "Looking for subtitles for: ${EPISODE_PATH}"
 doLog "Executing subliminal"
 doLog "subliminal download ${LANGUAGES} ${EPISODE_PATH}"
 subliminal download ${LANGUAGES} "${EPISODE_PATH}" >> $LOG_FILE 2>&1
-  
-# Look for not found subtitles
+
 declare LANG_ARRAY=($(echo ${LANGUAGES} | sed "s/-l //g"))
+
+declare SUB_FILES=""
+declare SUB_FILE_ARRAY=()
+declare FILE=$(echo "${EPISODE_PATH%.*}")
+declare OUTPUT_FILE=$(echo "${FILE}[merged].mkv")
 
 for LANG in "${LANG_ARRAY[@]}"; do
   SUB_FILE=$(echo $EPISODE_PATH | sed "s/...$/${LANG}\.srt/g")
   if [[ ! -f $SUB_FILE ]]; then
     doLog "Subtitle ${SUB_FILE} not found, adding it to wanted"
     echo $EPISODE_PATH:$SUB_FILE >> ${WANTED_FILE}
+  else 
+    SUB_FILES+="${SUB_FILE} "
+    SUB_FILE_ARRAY+=(${SUB_FILE})
   fi
 done
+
+if [ ${SUB_FILES} != "" ]; then
+  doLog "Executing mkvmerge"
+  doLog "mkvmerge -o ${OUTPUT_FILE} ${EPISODE_PATH} ${SUB_FILES}"
+  mkvmerge -o ${OUTPUT_FILE} ${EPISODE_PATH} ${SUB_FILES}
+
+  THRASH_PATH=$(echo "/home/mra/.local/share/Trash/files")
+  mv -f ${EPISODE_PATH} ${THRASH_PATH}
+  for SUB_FILE in "${SUB_FILE_ARRAY[@]}"; do
+    mv -f ${SUB_FILE} ${THRASH_PATH}
+  done
+fi
